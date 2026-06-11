@@ -166,7 +166,7 @@ button.big.go {
   display: flex; align-items: flex-end; justify-content: center;
   overflow: hidden;
 }
-.unit-card .mini { width: 48px; height: 64px; image-rendering: pixelated; }
+.unit-card .mini { width: 42px; height: 63px; image-rendering: pixelated; }
 .unit-card .items { color: var(--gold); font-size: 0.92em; }
 .unit-card .stat { display: inline-block; margin-right: 5px; font-size: 0.88em; font-family: 'Segoe UI', Trebuchet MS, sans-serif; }
 .prep-buttons { display: flex; gap: 10px; margin-top: 12px; width: min(540px, 100%); }
@@ -239,7 +239,7 @@ button.icon { padding: 4px 10px; font-size: 1.05em; border-radius: 8px; }
   overflow: hidden;
 }
 #portrait-frame.show { display: flex; }
-#portrait { width: 48px; height: 64px; image-rendering: pixelated; }
+#portrait { width: 42px; height: 63px; image-rendering: pixelated; }
 #panel-text { font-size: 0.95em; line-height: 1.5; min-height: 40px; flex: 1; }
 #panel-text small { color: var(--ink-dim); }
 .stat-chips { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 4px; font-family: 'Segoe UI', 'Trebuchet MS', sans-serif; font-size: 0.84em; }

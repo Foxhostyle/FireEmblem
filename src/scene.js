@@ -136,7 +136,7 @@ export class Diorama {
         m.position.copy(world(x, y));
         this.scene.add(m);
 
-        if (kind === 1) this.addBillboard(treeCanvas(), x, y, 1.18, 1.57, (x * 7 + y) % 2 === 0);
+        if (kind === 1) this.addBillboard(treeCanvas(), x, y, 1.32, 1.76, (x * 7 + y) % 2 === 0);
         if (kind === 2) this.addBillboard(ruinCanvas(), x, y, 1.05, 1.4, (x + y) % 2 === 0);
       }
     }
@@ -358,7 +358,7 @@ export class Diorama {
     const frames = [pixelTexture(unitCanvas(u.cls, u.team, 0)), pixelTexture(unitCanvas(u.cls, u.team, 1))];
     const mat = new THREE.SpriteMaterial({ map: frames[0], transparent: true, alphaTest: 0.05 });
     const sp = new THREE.Sprite(mat);
-    const w = unitCanvas(u.cls, u.team, 0).width / 24, h = unitCanvas(u.cls, u.team, 0).height / 24;
+    const w = unitCanvas(u.cls, u.team, 0).width / 34, h = unitCanvas(u.cls, u.team, 0).height / 34;
     sp.center.set(0.5, 0.045);
     sp.scale.set(w * 1.05, h * 1.05, 1);
     sp.position.copy(world(u.x, u.y));
@@ -426,7 +426,7 @@ export class Diorama {
     v.sp.position.set(p.x, 0, p.z);
     v.flash.position.copy(v.sp.position);
     v.shadow.position.set(p.x, 0.012, p.z);
-    v.hp.position.set(p.x, 1.52, p.z);
+    v.hp.position.set(p.x, 1.66, p.z);
   }
 
   // redessine la jauge de PV d'une unité
