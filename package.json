@@ -1,0 +1,23 @@
+{
+  "name": "fireemblem",
+  "version": "1.0.0",
+  "description": "Un jeu tactique **pixel art pour mobile** qui croise **Fire Emblem** et les **\u00e9checs** : on retrouve le triangle des armes, les doubles attaques, les ripostes et le terrain de Fire Emblem, mais sur un plateau 8\u00d78 o\u00f9 l'on ne joue qu'**une seule unit\u00e9 par tour**, comme aux \u00e9checs. Aucun hasard : tous les d\u00e9g\u00e2ts sont pr\u00e9visibles avant d'attaquer.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/main.js --bundle --minify --format=iife --outfile=dist/bundle.js",
+    "sim": "node src/sim.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://local_proxy@127.0.0.1:36123/git/Foxhostyle/FireEmblem"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "esbuild": "^0.28.0",
+    "three": "^0.184.0"
+  },
+  "private": true
+}

@@ -1,57 +1,81 @@
 /* ============================================================
-   Échec & Lame — style v2 « HD-2D », nostalgie Fire Emblem GBA
+   Échec & Lame v3 — interface HD-2D, nostalgie Fire Emblem
    ============================================================ */
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
 :root {
   --ink: #f3ecd8;
-  --ink-dim: #b9b2d8;
+  --ink-dim: #c5bedf;
   --gold: #e8c25c;
   --gold-dark: #9c7427;
-  --blue: #6f9ff0;
-  --red: #f07a6d;
+  --blue: #79a5f5;
+  --red: #f0796d;
   --panel-hi: #3d5da6;
   --panel-mid: #273f7d;
   --panel-lo: #1a2a56;
-  --night: #0d0a1e;
   --serif: Georgia, 'Palatino Linotype', 'Times New Roman', serif;
 }
 
 html, body {
   height: 100%;
-  background: var(--night);
+  background: #15102b;
   color: var(--ink);
   font-family: var(--serif);
   touch-action: manipulation;
   overscroll-behavior: none;
   user-select: none;
   -webkit-user-select: none;
+  overflow: hidden;
 }
 
-/* ciel de fond commun : nuit violette, lueur d'horizon */
-body {
-  background:
-    radial-gradient(120% 70% at 50% 108%, rgba(232, 150, 60, 0.20) 0%, rgba(190, 90, 90, 0.10) 30%, transparent 60%),
-    radial-gradient(90% 60% at 50% -10%, #2c2554 0%, transparent 70%),
-    linear-gradient(180deg, #181336 0%, #141029 45%, #0d0a1e 100%);
-  background-attachment: fixed;
+/* le diorama occupe tout l'écran, l'interface flotte au-dessus */
+#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+#floaters { position: fixed; inset: 0; pointer-events: none; z-index: 40; }
+.floater {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-weight: bold; font-size: 1.25em; color: #ffe14d;
+  text-shadow: 0 2px 0 #14101f, 0 0 12px rgba(0, 0, 0, 0.8);
+  animation: floatUp 1.05s ease-out forwards;
+  letter-spacing: 1px;
+}
+.floater.crit { color: #ff5040; font-size: 1.7em; }
+.floater.critlabel { color: #ffd23c; font-size: 0.95em; animation-delay: 0.12s; letter-spacing: 3px; }
+.floater.miss { color: #cfd4ff; font-size: 0.95em; font-style: italic; }
+@keyframes floatUp {
+  0% { opacity: 0; margin-top: 6px; }
+  12% { opacity: 1; }
+  72% { opacity: 1; }
+  100% { opacity: 0; margin-top: -46px; }
 }
 
-.screen { display: none; min-height: 100dvh; flex-direction: column; align-items: center; padding: 12px; position: relative; }
-.screen.active { display: flex; animation: screenIn 0.45s ease; }
+.screen { display: none; position: fixed; inset: 0; z-index: 10; }
+.screen.active { display: flex; flex-direction: column; align-items: center; animation: screenIn 0.4s ease; }
 @keyframes screenIn { from { opacity: 0; } to { opacity: 1; } }
 .hidden { display: none !important; }
+
+/* écrans plein-voile (menu, règles, prépa, fin) : voile sombre lisible */
+.screen.overlay {
+  padding: 16px;
+  overflow-y: auto;
+  background:
+    radial-gradient(120% 80% at 50% 10%, rgba(12, 8, 30, 0.50) 0%, rgba(12, 8, 30, 0.78) 100%);
+}
+/* écran de jeu : transparent, les touches passent au canvas */
+.screen.game { pointer-events: none; }
+.screen.game > * { pointer-events: auto; }
 
 .team-blue { color: var(--blue); }
 .team-red { color: var(--red); }
 .up { color: #7fe87f; }
 .down { color: #ff8d7e; }
 
-/* ---------- panneau façon Fire Emblem ---------- */
+/* ---------- panneau Fire Emblem ---------- */
 .fe-panel {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 26%),
-    linear-gradient(180deg, var(--panel-hi) 0%, var(--panel-mid) 55%, var(--panel-lo) 100%);
+    linear-gradient(180deg, rgba(61, 93, 166, 0.96) 0%, rgba(39, 63, 125, 0.96) 55%, rgba(26, 42, 86, 0.96) 100%);
   border: 2px solid #0a0f22;
   border-radius: 8px;
   box-shadow:
@@ -88,20 +112,19 @@ button.big.go {
 }
 
 /* ---------- écran titre ---------- */
-#menu-bg { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.menu-box { margin: auto; width: min(420px, 100%); display: flex; flex-direction: column; gap: 12px; text-align: center; position: relative; }
+.menu-box { margin: auto; width: min(420px, 100%); display: flex; flex-direction: column; gap: 12px; text-align: center; }
 #crest-box { display: flex; justify-content: center; margin-bottom: 4px; }
 #crest, #crest-end {
-  width: 132px; height: 132px; image-rendering: pixelated;
+  width: 128px; height: 128px; image-rendering: pixelated;
   filter: drop-shadow(0 0 14px rgba(232, 194, 92, 0.45)) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.6));
   animation: crestFloat 4.5s ease-in-out infinite;
 }
 @keyframes crestFloat {
-  0%, 100% { transform: translateY(0); filter: drop-shadow(0 0 10px rgba(232,194,92,0.35)) drop-shadow(0 6px 10px rgba(0,0,0,0.6)); }
-  50% { transform: translateY(-6px); filter: drop-shadow(0 0 20px rgba(232,194,92,0.65)) drop-shadow(0 10px 14px rgba(0,0,0,0.6)); }
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
 }
 .title {
-  font-size: 2.7em;
+  font-size: 2.6em;
   letter-spacing: 2px;
   background: linear-gradient(180deg, #fdf3c8 0%, #f0c542 38%, #a86f1d 62%, #f5d878 88%);
   -webkit-background-clip: text; background-clip: text;
@@ -116,7 +139,7 @@ button.big.go {
 }
 #diff-picker { display: flex; gap: 10px; }
 #diff-picker button { flex: 1; }
-.menu-foot { color: #6d668f; font-size: 0.8em; margin-top: 18px; letter-spacing: 1px; }
+.menu-foot { color: #8d86b0; font-size: 0.74em; margin-top: 18px; letter-spacing: 1.5px; }
 
 /* ---------- règles ---------- */
 .rules-box { width: min(540px, 100%); display: flex; flex-direction: column; gap: 8px; padding: 18px 18px 22px; margin: auto; }
@@ -126,7 +149,6 @@ button.big.go {
 .rules-box button { margin-top: 16px; }
 
 /* ---------- préparation ---------- */
-#screen-prep { padding-bottom: 24px; }
 #screen-prep h2 {
   margin: 8px 0 12px; letter-spacing: 1.5px;
   text-shadow: 0 2px 3px rgba(0, 0, 0, 0.7);
@@ -138,14 +160,15 @@ button.big.go {
 }
 .unit-card:active { filter: brightness(1.25); }
 .unit-card .mini-frame {
-  flex-shrink: 0; width: 60px; height: 60px; border-radius: 6px;
+  flex-shrink: 0; width: 58px; height: 66px; border-radius: 6px;
   background: radial-gradient(80% 80% at 50% 38%, #4a3f78 0%, #241e44 100%);
   box-shadow: inset 0 0 0 1px var(--gold-dark), inset 0 2px 8px rgba(0, 0, 0, 0.6);
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: flex-end; justify-content: center;
+  overflow: hidden;
 }
-.unit-card .mini { width: 48px; height: 48px; image-rendering: pixelated; }
+.unit-card .mini { width: 48px; height: 64px; image-rendering: pixelated; }
 .unit-card .items { color: var(--gold); font-size: 0.92em; }
-.unit-card .stat { display: inline-block; margin-right: 5px; font-size: 0.9em; font-family: 'Segoe UI', Trebuchet MS, sans-serif; }
+.unit-card .stat { display: inline-block; margin-right: 5px; font-size: 0.88em; font-family: 'Segoe UI', Trebuchet MS, sans-serif; }
 .prep-buttons { display: flex; gap: 10px; margin-top: 12px; width: min(540px, 100%); }
 .prep-buttons button { flex: 1; }
 
@@ -171,11 +194,10 @@ button.big.go {
 .item-row small { color: var(--ink-dim); }
 
 /* ---------- écran de jeu ---------- */
-#screen-game { padding: 0; gap: 0; }
 #topbar {
   width: 100%; display: flex; align-items: center; gap: 12px;
   padding: 9px 12px;
-  background: linear-gradient(180deg, #1c1736 0%, #120e26 100%);
+  background: linear-gradient(180deg, rgba(20, 15, 40, 0.92) 0%, rgba(14, 10, 30, 0.86) 100%);
   border-bottom: 1px solid rgba(232, 194, 92, 0.4);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
   font-weight: bold; letter-spacing: 0.5px;
@@ -184,46 +206,11 @@ button.big.go {
 #sd-label { color: #ffab4d; font-size: 0.82em; }
 button.icon { padding: 4px 10px; font-size: 1.05em; border-radius: 8px; }
 
-#board-wrap {
-  position: relative;
-  width: min(100vw - 16px, calc(100dvh - 210px));
-  max-width: 600px;
-  aspect-ratio: 1;
-  margin: 12px auto 8px;
-  border-radius: 10px;
-  padding: 5px;
-  background: linear-gradient(160deg, #4a3b22 0%, #2c2113 50%, #1c1408 100%);
-  box-shadow:
-    inset 0 0 0 2px var(--gold-dark),
-    inset 0 0 0 4px #171024,
-    0 10px 30px rgba(0, 0, 0, 0.65),
-    0 0 40px rgba(120, 90, 200, 0.12);
-}
-#board, #fx {
-  position: absolute; inset: 5px; width: calc(100% - 10px); height: calc(100% - 10px);
-  image-rendering: pixelated; image-rendering: crisp-edges;
-  border-radius: 5px;
-}
-#board { filter: saturate(1.15) contrast(1.05) brightness(1.02); }
-#fx { pointer-events: none; }
-
-/* étalonnage chaud / froid façon HD-2D */
-#grade {
-  position: absolute; inset: 5px; border-radius: 5px; pointer-events: none;
-  background: linear-gradient(200deg, rgba(255, 196, 110, 0.16) 0%, rgba(255, 150, 80, 0.05) 35%, rgba(70, 60, 180, 0.12) 100%);
-  mix-blend-mode: overlay;
-}
-#vignette {
-  position: absolute; inset: 5px; border-radius: 5px; pointer-events: none;
-  background: radial-gradient(85% 85% at 50% 46%, transparent 55%, rgba(10, 6, 26, 0.42) 100%);
-}
-
 #banner {
-  position: absolute; left: -6px; right: -6px; top: 41%;
+  position: fixed; left: 0; right: 0; top: 34%;
   text-align: center; font-size: 1.35em; font-weight: bold; color: #fdf6e0;
-  padding: 12px; pointer-events: none; opacity: 0;
+  padding: 12px; pointer-events: none; opacity: 0; z-index: 20;
   letter-spacing: 3px;
-  background: linear-gradient(90deg, transparent 0%, rgba(12, 9, 28, 0.88) 12%, rgba(12, 9, 28, 0.88) 88%, transparent 100%);
   border-top: 1px solid rgba(232, 194, 92, 0.8);
   border-bottom: 1px solid rgba(232, 194, 92, 0.8);
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
@@ -238,33 +225,37 @@ button.icon { padding: 4px 10px; font-size: 1.05em; border-radius: 8px; }
 
 /* ---------- panneau d'information ---------- */
 #panel {
-  width: min(600px, calc(100% - 16px)); margin: 0 auto 12px; padding: 12px;
-  display: flex; flex-direction: column; gap: 10px; min-height: 132px;
+  position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%);
+  width: min(600px, calc(100% - 16px)); padding: 12px;
+  display: flex; flex-direction: column; gap: 10px; min-height: 116px;
+  z-index: 15;
 }
 #panel-row { display: flex; gap: 12px; align-items: flex-start; }
 #portrait-frame {
-  flex-shrink: 0; width: 64px; height: 64px; border-radius: 6px;
+  flex-shrink: 0; width: 58px; height: 70px; border-radius: 6px;
   background: radial-gradient(80% 80% at 50% 38%, #4a3f78 0%, #241e44 100%);
   box-shadow: inset 0 0 0 1px var(--gold-dark), inset 0 2px 8px rgba(0, 0, 0, 0.6);
-  display: none; align-items: center; justify-content: center;
+  display: none; align-items: flex-end; justify-content: center;
+  overflow: hidden;
 }
 #portrait-frame.show { display: flex; }
-#portrait { width: 56px; height: 56px; image-rendering: pixelated; }
-#panel-text { font-size: 0.95em; line-height: 1.55; min-height: 44px; flex: 1; }
+#portrait { width: 48px; height: 64px; image-rendering: pixelated; }
+#panel-text { font-size: 0.95em; line-height: 1.5; min-height: 40px; flex: 1; }
 #panel-text small { color: var(--ink-dim); }
-.stat-chips { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 3px; font-family: 'Segoe UI', 'Trebuchet MS', sans-serif; font-size: 0.86em; }
+.stat-chips { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 4px; font-family: 'Segoe UI', 'Trebuchet MS', sans-serif; font-size: 0.84em; }
 .stat-chips span { background: rgba(10, 14, 34, 0.55); border: 1px solid rgba(232, 194, 92, 0.3); border-radius: 5px; padding: 1px 7px; }
 #panel-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
-button.action { flex: 1; min-width: 108px; font-size: 1.02em; padding: 12px; }
+button.action { flex: 1; min-width: 104px; font-size: 1.02em; padding: 12px; }
 button.action.attack {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0) 30%),
     linear-gradient(180deg, #913030 0%, #6e2024 55%, #4c1418 100%);
 }
 
-.forecast .fc-row { padding: 2px 0; }
+.forecast .fc-row { padding: 3px 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fc-chips { display: inline-flex; gap: 5px; font-family: 'Segoe UI', sans-serif; font-size: 0.84em; }
+.fc-chips span { background: rgba(10, 14, 34, 0.6); border: 1px solid rgba(232, 194, 92, 0.35); border-radius: 5px; padding: 1px 7px; color: var(--ink); }
 .forecast .fc-warn { color: #ffab4d; font-size: 0.88em; padding-top: 4px; }
 
 /* ---------- fin ---------- */
-#screen-end .menu-box { text-align: center; }
 #end-title { font-size: 2.1em; letter-spacing: 1.5px; text-shadow: 0 3px 0 #14101f, 0 6px 12px rgba(0, 0, 0, 0.8); }

@@ -1,30 +1,32 @@
 // ============================================================
-// Échec & Lame — moteur de règles (déterministe, zéro hasard)
+// Échec & Lame v3 — moteur de règles (combat probabiliste)
 // ============================================================
-'use strict';
+import {
+  BOARD, SUDDEN_DEATH, DOUBLE_SPD, KOMI,
+  CLASSES, TRIANGLE, ITEMS, TERRAIN, MAP, START_UNITS,
+} from './data.js';
 
 let unitSeq = 0;
 
-function makeUnit(cls, team, x, y) {
-  // komi : les Rouges jouent en second, +1 PV compense le trait
-  const komi = team === 1 ? 1 : 0;
+export function makeUnit(cls, team, x, y) {
+  const komi = team === 1 ? KOMI : 0;
   return {
     id: ++unitSeq, cls, team, x, y,
-    weapon: null, armor: null, // ids d'objets
+    weapon: null, armor: null,
     komi,
     hp: CLASSES[cls].hp + komi,
     dead: false,
   };
 }
 
-function findItem(id) {
+export function findItem(id) {
   return ITEMS.weapons.concat(ITEMS.armors).find(i => i.id === id) || null;
 }
 
-// Stats effectives = classe + équipement (planchers : mov >= 1, autres >= 0)
-function stats(u) {
+// Stats effectives = classe + équipement + komi
+export function stats(u) {
   const base = CLASSES[u.cls];
-  const s = { hp: base.hp, atk: base.atk, def: base.def, spd: base.spd, mov: base.mov };
+  const s = { hp: base.hp, atk: base.atk, def: base.def, tec: base.tec, spd: base.spd, mov: base.mov };
   for (const itemId of [u.weapon, u.armor]) {
     const it = findItem(itemId);
     if (!it) continue;
@@ -32,20 +34,30 @@ function stats(u) {
   }
   s.hp += u.komi || 0;
   s.mov = Math.max(1, s.mov);
-  for (const k of ['atk', 'def', 'spd']) s[k] = Math.max(0, s[k]);
+  for (const k of ['atk', 'def', 'tec', 'spd']) s[k] = Math.max(0, s[k]);
   s.hp = Math.max(1, s.hp);
   return s;
 }
 
-class Game {
-  constructor() {
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+// Système « 2 jets » (comme FE GBA) : la précision affichée p (0-100)
+// se comporte comme la moyenne de deux jets — les 85 % en valent ~92.
+export function trueHit(p) {
+  const x = p / 100;
+  return x <= 0.5 ? 2 * x * x : 1 - 2 * (1 - x) * (1 - x);
+}
+
+export class Game {
+  constructor(rng = Math.random) {
+    this.rng = rng;
     this.units = [];
     for (const [cls, x, y] of START_UNITS) {
       this.units.push(makeUnit(cls, 0, x, y));
       this.units.push(makeUnit(cls, 1, BOARD - 1 - x, BOARD - 1 - y));
     }
-    this.turn = 1;          // demi-tours joués + 1
-    this.current = 0;       // équipe active (0 = bleus commencent)
+    this.turn = 1;
+    this.current = 0;
     this.winner = null;
     this.suddenDeath = false;
   }
@@ -55,9 +67,7 @@ class Game {
   inBoard(x, y) { return x >= 0 && y >= 0 && x < BOARD && y < BOARD; }
   terrain(x, y) { return TERRAIN[MAP[y][x]]; }
 
-  // --- Déplacement : BFS avec coût de terrain -----------------
-  // Traverse les alliés (et tout le monde pour le cavalier), ne
-  // peut pas s'arrêter sur une case occupée.
+  // --- Déplacement : Dijkstra avec coût de terrain ---------------
   reachable(u) {
     const s = stats(u);
     const cost = Array.from({ length: BOARD }, () => Array(BOARD).fill(Infinity));
@@ -85,7 +95,6 @@ class Game {
     return { tiles: out, cost };
   }
 
-  // Chemin reconstruit pour l'animation
   path(u, costGrid, tx, ty) {
     const p = [[tx, ty]];
     let [x, y] = [tx, ty];
@@ -104,53 +113,78 @@ class Game {
     return p;
   }
 
-  // Ennemis attaquables depuis (x, y)
   targetsFrom(u, x, y) {
     const rng = CLASSES[u.cls].rng;
     return this.alive(1 - u.team).filter(e => rng.includes(Math.abs(e.x - x) + Math.abs(e.y - y)));
   }
 
-  // --- Combat --------------------------------------------------
-  // Dégâts d'une frappe (déterministe)
-  strikeDamage(att, def, attPos, defPos) {
+  // --- Combat ------------------------------------------------------
+  // Profil d'une frappe att -> def : dégâts, précision, critique
+  strikeProfile(att, def, attPos, defPos) {
     const sa = stats(att), sd = stats(def);
     const ca = CLASSES[att.cls];
-    let dmg = sa.atk;
-    // triangle des armes
     const wa = ca.wpn, wd = CLASSES[def.cls].wpn;
-    if (TRIANGLE[wa] === wd) dmg += 1;
-    else if (TRIANGLE[wd] === wa) dmg -= 1;
-    // défense (la magie ignore la moitié de la Déf)
-    const terr = this.terrain(defPos[0], defPos[1]).def;
-    dmg -= ca.magic ? Math.floor(sd.def / 2) + terr : sd.def + terr;
-    // minimum 1 : aucune unité n'est invincible, le siège reste possible
-    return Math.max(1, dmg);
+    let dmg = sa.atk;
+    let hit = 70 + (sa.tec - sd.spd) * 5;
+    if (TRIANGLE[wa] === wd) { dmg += 1; hit += 10; }
+    else if (TRIANGLE[wd] === wa) { dmg -= 1; hit -= 10; }
+    const terr = this.terrain(defPos[0], defPos[1]);
+    dmg -= ca.magic ? Math.floor(sd.def / 2) + terr.def : sd.def + terr.def;
+    hit -= terr.avoid;
+    const crit = clamp(2 + sa.tec * 2 - sd.tec, 0, 35);
+    return { dmg: Math.max(1, dmg), hit: clamp(hit, 40, 100), crit };
   }
 
-  // Prévision complète : séquence de frappes A/D avec doubles
+  // Prévision complète : séquence de frappes avec ordres et probabilités
   forecast(att, def, attPos) {
     const ap = attPos || [att.x, att.y];
     const dp = [def.x, def.y];
     const dist = Math.abs(ap[0] - dp[0]) + Math.abs(ap[1] - dp[1]);
     const canCounter = CLASSES[def.cls].rng.includes(dist);
     const sa = stats(att), sd = stats(def);
-    const dmgA = this.strikeDamage(att, def, ap, dp);
-    const dmgD = canCounter ? this.strikeDamage(def, att, dp, ap) : 0;
+    const A = this.strikeProfile(att, def, ap, dp);
+    const D = canCounter ? this.strikeProfile(def, att, dp, ap) : null;
     const dblA = sa.spd >= sd.spd + DOUBLE_SPD;
     const dblD = sd.spd >= sa.spd + DOUBLE_SPD;
-    // Prévoyance : un défenseur strictement plus rapide riposte en PREMIER
     const vantage = canCounter && sd.spd > sa.spd;
-    // Ordre : (prévoyance), attaquant, défenseur, puis la double du plus rapide
     const seq = [];
-    if (vantage) seq.push({ who: 'D', dmg: dmgD });
-    seq.push({ who: 'A', dmg: dmgA });
-    if (canCounter && !vantage) seq.push({ who: 'D', dmg: dmgD });
-    if (dblA) seq.push({ who: 'A', dmg: dmgA });
-    else if (canCounter && dblD) seq.push({ who: 'D', dmg: dmgD });
-    return { dmgA, dmgD, dblA, dblD, canCounter, vantage, seq };
+    if (vantage) seq.push({ who: 'D', ...D });
+    seq.push({ who: 'A', ...A });
+    if (canCounter && !vantage) seq.push({ who: 'D', ...D });
+    if (dblA) seq.push({ who: 'A', ...A });
+    else if (canCounter && dblD) seq.push({ who: 'D', ...D });
+    return { A, D, dblA, dblD, canCounter, vantage, seq };
   }
 
-  // Applique le combat ; renvoie la liste des frappes réellement portées
+  // Espérances exactes par énumération des issues (≤ 3 frappes)
+  // -> { evDealt, evTaken, pKill, pDie }
+  expected(att, def, attPos) {
+    const f = this.forecast(att, def, attPos);
+    let evDealt = 0, evTaken = 0, pKill = 0, pDie = 0;
+    const walk = (i, hpA, hpD, prob) => {
+      if (prob < 1e-9) return;
+      if (i >= f.seq.length || hpA <= 0 || hpD <= 0) {
+        evDealt += prob * (def.hp - Math.max(0, hpD));
+        evTaken += prob * (att.hp - Math.max(0, hpA));
+        if (hpD <= 0) pKill += prob;
+        if (hpA <= 0) pDie += prob;
+        return;
+      }
+      const st = f.seq[i];
+      const p = trueHit(st.hit), c = st.crit / 100;
+      const apply = (mult, pr) => {
+        if (st.who === 'A') walk(i + 1, hpA, hpD - st.dmg * mult, prob * pr);
+        else walk(i + 1, hpA - st.dmg * mult, hpD, prob * pr);
+      };
+      apply(0, 1 - p);                // esquive
+      apply(1, p * (1 - c));          // touche
+      apply(2, p * c);                // critique (x2)
+    };
+    walk(0, att.hp, def.hp, 1);
+    return { evDealt, evTaken, pKill, pDie, f };
+  }
+
+  // Applique le combat (jets réels) ; renvoie les frappes jouées
   resolveCombat(att, def, attPos) {
     const f = this.forecast(att, def, attPos);
     const strikes = [];
@@ -158,9 +192,13 @@ class Game {
       const actor = st.who === 'A' ? att : def;
       const victim = st.who === 'A' ? def : att;
       if (actor.dead || victim.dead) break;
-      victim.hp = Math.max(0, victim.hp - st.dmg);
-      const kill = victim.hp === 0;
-      strikes.push({ who: st.who, dmg: st.dmg, kill });
+      const roll = (this.rng() + this.rng()) / 2 * 100;
+      const hit = roll < st.hit;
+      const crit = hit && this.rng() * 100 < st.crit;
+      const dmg = hit ? st.dmg * (crit ? 2 : 1) : 0;
+      victim.hp = Math.max(0, victim.hp - dmg);
+      const kill = hit && victim.hp === 0;
+      strikes.push({ who: st.who, dmg, hit, crit, kill });
       if (kill) { victim.dead = true; break; }
     }
     this.checkVictory();
@@ -174,13 +212,12 @@ class Game {
     }
   }
 
-  // Fin du tour d'une équipe → passe la main, gère la mort subite
   endTurn() {
     this.turn++;
     this.current = 1 - this.current;
     if (this.turn > SUDDEN_DEATH) {
       this.suddenDeath = true;
-      // une vague d'usure par tour complet, sur les DEUX camps (symétrique)
+      // une vague d'usure par tour complet, sur les DEUX camps
       if (this.current === 0) {
         for (const u of this.units) {
           if (u.dead) continue;
@@ -190,7 +227,6 @@ class Game {
         const l0 = this.units.find(u => u.team === 0 && u.cls === 'lord');
         const l1 = this.units.find(u => u.team === 1 && u.cls === 'lord');
         if (l0.dead && l1.dead) {
-          // double KO : départage aux PV totaux, puis au nombre d'unités
           const hp = t => this.alive(t).reduce((a, u) => a + u.hp, 0);
           if (hp(0) !== hp(1)) this.winner = hp(0) > hp(1) ? 0 : 1;
           else this.winner = this.alive(0).length >= this.alive(1).length ? 0 : 1;

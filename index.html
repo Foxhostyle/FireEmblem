@@ -3,16 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#0d0a1e">
-<title>Échec &amp; Lame — tactique pixel art</title>
+<meta name="theme-color" content="#15102b">
+<title>Échec &amp; Lame — tactique HD-2D</title>
 <link rel="stylesheet" href="css/style.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%230d0a1e'/><rect x='2' y='2' width='6' height='6' fill='%234d7fdd'/><rect x='8' y='8' width='6' height='6' fill='%23d8504a'/></svg>">
 </head>
 <body>
-<canvas id="menu-bg"></canvas>
+<canvas id="gl"></canvas>
+<div id="floaters"></div>
 
 <!-- ================= MENU ================= -->
-<div id="screen-menu" class="screen active">
+<div id="screen-menu" class="screen overlay active">
   <div class="menu-box">
     <div id="crest-box"><canvas id="crest" width="32" height="32"></canvas></div>
     <h1 class="title">Échec &amp; Lame</h1>
@@ -25,46 +26,47 @@
     </div>
     <button id="btn-2p" class="big">🛡 &nbsp;Duel — même téléphone</button>
     <button id="btn-rules" class="big alt">📜 &nbsp;Codex des règles</button>
-    <p class="menu-foot">UNE BATAILLE · DEUX ROYAUMES · AUCUN HASARD</p>
+    <p class="menu-foot">UNE BATAILLE · DEUX ROYAUMES · LA FORTUNE SOURIT AUX HABILES</p>
   </div>
 </div>
 
 <!-- ================= RÈGLES ================= -->
-<div id="screen-rules" class="screen">
+<div id="screen-rules" class="screen overlay">
   <div class="rules-box fe-panel">
     <h2>Codex des règles</h2>
     <p><b>But :</b> abattez le <b>Seigneur</b> adverse. Comme aux échecs, on joue
-    <b>une seule unité par tour</b>, chacun son tour. Aucun hasard : tous les
-    dégâts sont annoncés avant de frapper.</p>
+    <b>une seule unité par tour</b>, chacun son tour.</p>
     <h3>⚔ Combat</h3>
-    <p>Dégâts = Atq − Déf (<b>minimum 1</b> : personne n'est invincible).
-    Le défenseur <b>riposte</b> s'il a l'attaquant à portée. Avec <b>+3 Vit</b>
-    ou plus d'écart, on frappe <b>deux fois</b>.</p>
-    <p><b>Prévoyance :</b> si le défenseur est strictement plus rapide que
-    l'attaquant, il riposte <b>avant</b> la première frappe. Attaquer plus
-    rapide que soi est risqué !</p>
-    <h3>🔱 Triangle des armes (±1 dégât)</h3>
+    <p>Dégâts = Atq − Déf (minimum 1). Le défenseur <b>riposte</b> s'il a
+    l'attaquant à portée. Avec <b>+3 Vit</b> d'écart, on frappe <b>deux fois</b>.
+    <b>Prévoyance :</b> un défenseur strictement plus rapide riposte
+    <b>avant</b> la première frappe.</p>
+    <h3>🎯 Technique, précision, critiques</h3>
+    <p>La <b>Technique</b> gouverne la visée : Précision = 70 + (Tec − Vit
+    adverse) × 5. Le triangle des armes ajoute ±10. Chaque coup peut faire
+    un <b>critique</b> (dégâts ×2) : Crit = 2 + Tec×2 − Tec adverse.
+    Toutes les chances sont affichées avant d'attaquer.</p>
+    <h3>🔱 Triangle des armes (±1 dégât, ±10 précision)</h3>
     <p>🗡 Épée &gt; 🪓 Hache &gt; 🔱 Lance &gt; 🗡 Épée. La ✨ Magie est neutre
     et ignore la moitié de la Déf.</p>
     <h3>♟ Unités</h3>
     <p>♟ <b>Soldat</b> (lance) · ♞ <b>Cavalier</b> (rapide, saute les unités) ·
-    ♜ <b>Chevalier</b> (mur lent) · ♝ <b>Mage</b> (portée 1-2, pas de riposte
-    possible contre lui à distance) · ♚ <b>Seigneur</b> (à protéger !).</p>
+    ♜ <b>Chevalier</b> (mur lent mais imprécis) · ♝ <b>Mage</b> (précis,
+    portée 1-2) · ♚ <b>Seigneur</b> (à protéger !).</p>
     <h3>🌲 Terrain &amp; divers</h3>
-    <p>La forêt donne <b>+1 Déf</b> mais coûte 2 points de mouvement.
-    Touchez une unité ennemie pour voir sa <b>zone de menace</b>.
-    Les Bleus jouent en premier ; en compensation, chaque unité Rouge a
-    <b>+1 PV</b>. Après 20 tours chacun : <b>mort subite</b>, toutes les
-    unités perdent 1 PV par tour complet.</p>
+    <p>La forêt : +1 Déf, +15 esquive, coûte 2 mouvement. Les <b>ruines</b>
+    sont infranchissables. Touchez une unité ennemie pour voir sa
+    <b>zone de menace</b>. Après 20 tours chacun : <b>mort subite</b>,
+    toutes les unités perdent 1 PV par tour complet.</p>
     <h3>⚒ Équipement</h3>
-    <p>Avant la bataille, équipez vos unités : chaque objet donne
-    <b>un bonus contre un malus</b>, et chaque objet est unique.</p>
+    <p>Avant la bataille : 1 arme + 1 armure par unité, chaque objet est
+    unique et donne <b>un bonus contre un malus</b>.</p>
     <button id="btn-rules-back" class="big">⬅ Retour</button>
   </div>
 </div>
 
 <!-- ================= PRÉPARATION ================= -->
-<div id="screen-prep" class="screen">
+<div id="screen-prep" class="screen overlay">
   <h2 id="prep-title">Équipement</h2>
   <div id="prep-list"></div>
   <div class="prep-buttons">
@@ -83,7 +85,7 @@
 </div>
 
 <!-- ================= JEU ================= -->
-<div id="screen-game" class="screen">
+<div id="screen-game" class="screen game">
   <div id="topbar">
     <span id="turn-label">Tour 1</span>
     <span id="team-indicator" class="team-blue">Bleus</span>
@@ -92,16 +94,10 @@
     <button id="btn-mute" class="icon">🔊</button>
     <button id="btn-quit" class="icon">✖</button>
   </div>
-  <div id="board-wrap">
-    <canvas id="board" width="192" height="192"></canvas>
-    <div id="grade"></div>
-    <div id="vignette"></div>
-    <canvas id="fx" width="768" height="768"></canvas>
-    <div id="banner"></div>
-  </div>
+  <div id="banner"></div>
   <div id="panel" class="fe-panel">
     <div id="panel-row">
-      <div id="portrait-frame"><canvas id="portrait" width="24" height="24"></canvas></div>
+      <div id="portrait-frame"><canvas id="portrait" width="24" height="32"></canvas></div>
       <div id="panel-text"></div>
     </div>
     <div id="panel-buttons">
@@ -114,7 +110,7 @@
 </div>
 
 <!-- ================= FIN ================= -->
-<div id="screen-end" class="screen">
+<div id="screen-end" class="screen overlay">
   <div class="menu-box">
     <div id="crest-box"><canvas id="crest-end" width="32" height="32"></canvas></div>
     <h1 id="end-title">Victoire !</h1>
@@ -125,10 +121,6 @@
   </div>
 </div>
 
-<script src="js/data.js"></script>
-<script src="js/sprites.js"></script>
-<script src="js/game.js"></script>
-<script src="js/ai.js"></script>
-<script src="js/main.js"></script>
+<script src="dist/bundle.js" defer></script>
 </body>
 </html>

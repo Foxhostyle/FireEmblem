@@ -1,122 +1,66 @@
-# ⚔ Échec & Lame
+# ⚔ Échec & Lame — tactique HD-2D
 
-Un jeu tactique **pixel art pour mobile** qui croise **Fire Emblem** et les
-**échecs** : on retrouve le triangle des armes, les doubles attaques, les
-ripostes et le terrain de Fire Emblem, mais sur un plateau 8×8 où l'on ne
-joue qu'**une seule unité par tour**, comme aux échecs. Aucun hasard : tous
-les dégâts sont prévisibles avant d'attaquer.
+Un jeu tactique mobile qui croise **Fire Emblem** et les **échecs**,
+dans un écrin **HD-2D** façon remake Dragon Quest : diorama 3D flottant
+sur l'océan, sprites pixel art, lumière dorée, bloom et caméra de duel.
 
-Une partie dure **10 à 20 minutes**.
+- **Un tour = une unité**, chacun son tour. But : abattre le **Seigneur** adverse.
+- **Technique, précision, critiques** : chaque attaque affiche dégâts,
+  % de toucher et % de critique avant d'être confirmée. Système
+  « 2 jets » à la Fire Emblem GBA.
+- **Équipement** : 1 arme + 1 armure par unité, chaque objet est unique
+  et donne toujours **un bonus contre un malus**.
+- 1 joueur (IA Recrue/Stratège) ou 2 joueurs sur le même téléphone.
+- Une partie : **10-20 minutes** (mort subite après 20 tours chacun).
 
 ## ▶ Jouer
 
-C'est un jeu web, sans dépendance ni build :
+Le jeu est 100 % statique (un bundle, aucune requête) :
 
-- **En local** : ouvrir `index.html` dans un navigateur (ou
-  `python3 -m http.server` puis `http://localhost:8000` sur le téléphone).
-- **En ligne** : activer GitHub Pages sur ce dépôt (Settings → Pages →
-  branche, dossier `/`) et ouvrir l'URL depuis un téléphone.
+- **En ligne** : activer GitHub Pages (Settings → Pages → branche, `/`)
+  et ouvrir l'URL sur téléphone.
+- **En local** : `python3 -m http.server` puis `http://localhost:8000`
+  (le bundle est commité, aucun build nécessaire pour jouer).
 
-### Modes
+## 🛠 Développement
 
-- **1 joueur** contre l'ordinateur (IA *Recrue* ou *Stratège*) ;
-- **2 joueurs** sur le même téléphone, chacun joue son tour.
-
-## 📜 Règles
-
-- **But** : tuer le **Seigneur** adverse (le « roi »).
-- **Un tour = une unité** : déplacer puis attaquer ou attendre. On peut
-  rejouer la même unité plusieurs tours de suite.
-- **Combat déterministe** : dégâts = Atq − Déf, **minimum 1**. Le défenseur
-  riposte si l'attaquant est à sa portée.
-- **Double attaque** : +3 Vitesse ou plus d'écart → on frappe deux fois.
-- **Prévoyance** : un défenseur strictement plus rapide riposte **avant**
-  la première frappe de l'attaquant.
-- **Triangle des armes** (±1 dégât) : Épée > Hache > Lance > Épée.
-  La Magie est neutre et ignore la moitié de la Déf.
-- **Terrain** : la forêt donne +1 Déf mais coûte 2 points de mouvement.
-- **Mort subite** : après 20 tours chacun, toutes les unités perdent
-  1 PV par tour complet — impossible de jouer la montre.
-- **Komi** : les Bleus jouent en premier ; chaque unité Rouge a +1 PV en
-  compensation.
-
-### Unités (inspirées des pièces)
-
-| Unité | Pièce | Arme | Profil |
-|---|---|---|---|
-| Seigneur | Roi | Épée | Bon partout — s'il meurt, c'est perdu |
-| Soldat ×2 | Pion | Lance | Ligne de front solide |
-| Cavalier | Cavalier | Épée | Très rapide, saute par-dessus les unités |
-| Chevalier | Tour | Hache | Mur de fer, très lent |
-| Mage | Fou | Magie | Frappe à distance 1-2, fragile |
-
-### Équipement
-
-Avant la bataille, chaque unité peut recevoir **1 arme + 1 armure**.
-Chaque objet est unique dans le camp et donne toujours **un bonus contre
-un malus** : Forge lourde (+3 Atq / −2 Vit), Forge légère (+2 Vit / −1 Atq),
-Forge perçante (+2 Atq / −2 Déf), Forge de garde (+2 Déf / −1 Atq),
-Harnois de plates (+3 Déf / −2 Vit), Cape d'agilité (+2 Vit / −1 Déf),
-Bottes ailées (+1 Mou / −2 Déf), Amulette vitale (+6 PV / −1 Vit).
-
-## ✨ Direction artistique (v2)
-
-Refonte « HD-2D » inspirée des remakes Dragon Quest et des menus
-Fire Emblem GBA :
-
-- sprites pixel art **24×24** redessinés (visages, ombrage 3 tons,
-  armes lisibles), ombres portées sous les unités ;
-- éclairage : balayage de lumière diagonal, poussières lumineuses,
-  étalonnage chaud/froid, vignettage, braises flottantes en fond ;
-- combat : flash d'impact, étincelles, onde de choc, tremblement
-  d'écran, dégâts flottants ;
-- menus : panneaux bleu nuit à double liseré d'or, typographie serif,
-  blason ailé dessiné en pixel art, portraits encadrés.
-
-## 🎯 Choix de design
-
-- **Zéro hasard** : pour marier échecs et Fire Emblem, tout le combat est
-  déterministe et prévisualisé. La tension vient du positionnement, pas
-  des dés.
-- **Une unité par tour** : c'est ce qui rend le jeu « nerveux » — pas de
-  longue phase ennemie, on répond coup pour coup.
-- **Dégâts minimum 1** : sans cela, un Seigneur sur-blindé devenait
-  littéralement invincible (constaté en simulation) et la partie gelait.
-- **Prévoyance + komi** : en simulation IA-contre-IA (160 parties par
-  réglage), le premier joueur gagnait ~90 % des parties miroir. La riposte
-  prioritaire du défenseur plus rapide et le +1 PV du second joueur
-  ramènent le miroir « Stratège » à ~50/50.
-- **Mort subite** : garantit la durée cible de 10-20 min et force
-  l'engagement en fin de partie.
-
-L'IA évalue chaque coup possible (case × cible) avec une carte des menaces
-ennemies, simule exactement la séquence de frappes, et mesure chaque coup
-en **gain par rapport à l'immobilité** de l'unité — *Stratège* est précise
-et évite les cases mortelles, *Recrue* est plus brouillonne.
-
-## 🗂 Architecture
-
-```
-index.html      écrans (menu, règles, préparation, jeu, fin)
-css/style.css   style mobile
-js/data.js      classes, objets, carte, constantes d'équilibrage
-js/sprites.js   sprites 16×16 dessinés en grilles de caractères
-js/game.js      moteur de règles (déplacement, combat, victoire)
-js/ai.js        IA + équipement automatique
-js/main.js      interface, rendu canvas, animations, sons
+```bash
+npm install        # three.js + esbuild
+npm run build      # src/*.js -> dist/bundle.js
+npm run sim 60     # équilibrage : IA vs IA, 60 parties par matchup
 ```
 
-## 💡 Idées pour la suite (v2)
+```
+src/data.js     classes, objets, carte, constantes
+src/engine.js   règles : déplacement, combat probabiliste, victoire
+src/ai.js       IA (espérances exactes par énumération des issues)
+src/art.js      pixel art : sprites 24x32, tuiles, blason, textures
+src/scene.js    diorama three.js : caméra, lumière, bloom, animations
+src/main.js     écrans, flux de jeu, sons
+src/sim.js      simulation d'équilibrage (node)
+```
 
-- **Brouillard d'équipement** : cacher l'équipement adverse jusqu'au
-  premier combat de chaque unité (mind game à la draft).
-- **Draft d'objets alterné** : au lieu d'équiper en aveugle, drafter les
-  8 objets chacun son tour.
-- **Nouvelles unités** : Archer (portée 2 uniquement), Soigneur,
-  Voleur (vole un objet en attaquant).
-- **Cartes variées** : rivières, forts (+2 Déf), brume.
-- **Promotion** : un Soldat qui atteint la dernière rangée se promeut
-  (comme aux échecs !).
-- **Multijoueur en ligne** (le moteur étant déterministe, il suffit
-  d'échanger les coups), historique des coups et notation de partie.
-- **PWA** : manifeste + service worker pour l'installer hors-ligne.
+## 📜 Règles complètes
+
+Voir le **Codex** en jeu. L'essentiel :
+
+| Mécanique | Formule |
+|---|---|
+| Dégâts | Atq − Déf (magie : − Déf/2), minimum 1 |
+| Précision | 70 + (Tec − Vit déf) × 5, ±10 triangle, −15 forêt, borné 40-100 |
+| Critique (×2) | 2 + Tec × 2 − Tec déf, borné 0-35 |
+| Double attaque | +3 Vit d'écart |
+| Prévoyance | défenseur strictement plus rapide → riposte en premier |
+| Triangle | Épée > Hache > Lance > Épée (magie neutre) |
+| Forêt | +1 Déf, +15 esquive, coût 2 — Ruines : infranchissables |
+| Mort subite | tour 21+ : −1 PV à tous, chaque tour complet |
+
+Unités (PV/Atq/Déf/Tec/Vit/Mou) : Seigneur 20/6/4/7/6/3 ·
+Soldat 18/5/3/5/4/2 · Cavalier 17/5/3/5/7/4 (saute les unités) ·
+Chevalier 22/7/6/3/1/2 · Mage 14/7/2/8/5/3 (portée 1-2).
+
+## 🎯 Conception
+
+Les choix (techno, formules, équilibrage mesuré sur 480 parties
+simulées, direction artistique) sont documentés dans **[DESIGN.md](DESIGN.md)** —
+le compte rendu du « conseil » de conception demandé pour la v3.
