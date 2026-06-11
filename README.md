@@ -59,6 +59,20 @@ Forge perçante (+2 Atq / −2 Déf), Forge de garde (+2 Déf / −1 Atq),
 Harnois de plates (+3 Déf / −2 Vit), Cape d'agilité (+2 Vit / −1 Déf),
 Bottes ailées (+1 Mou / −2 Déf), Amulette vitale (+6 PV / −1 Vit).
 
+## ✨ Direction artistique (v2)
+
+Refonte « HD-2D » inspirée des remakes Dragon Quest et des menus
+Fire Emblem GBA :
+
+- sprites pixel art **24×24** redessinés (visages, ombrage 3 tons,
+  armes lisibles), ombres portées sous les unités ;
+- éclairage : balayage de lumière diagonal, poussières lumineuses,
+  étalonnage chaud/froid, vignettage, braises flottantes en fond ;
+- combat : flash d'impact, étincelles, onde de choc, tremblement
+  d'écran, dégâts flottants ;
+- menus : panneaux bleu nuit à double liseré d'or, typographie serif,
+  blason ailé dessiné en pixel art, portraits encadrés.
+
 ## 🎯 Choix de design
 
 - **Zéro hasard** : pour marier échecs et Fire Emblem, tout le combat est

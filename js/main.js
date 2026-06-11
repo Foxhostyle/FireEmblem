@@ -30,11 +30,15 @@ const FX = {
   flash: {},     // id -> timestamp de fin de flash
   fade: {},      // id -> alpha (mort)
   popups: [],    // {x, y, text, born, color}
+  sparks: [],    // étincelles d'impact (en px du calque fx)
+  rings: [],     // ondes de choc
+  motes: [],     // poussières lumineuses ambiantes
+  embers: [],    // braises de l'écran titre
   shake: 0,      // timestamp de fin de tremblement
 };
 
-const TILE = 16, SCALE = 4;
-let cv, ctx, fx, fxctx;
+const TILE = 24, SCALE = 4; // fx = 192*4 = 768
+let cv, ctx, fx, fxctx, menuBg, menuCtx;
 
 // ---------- Sons (WebAudio, synthèse minimaliste) -------------
 let actx = null;
@@ -71,6 +75,21 @@ window.addEventListener('DOMContentLoaded', () => {
   cv = $('#board'); ctx = cv.getContext('2d');
   fx = $('#fx'); fxctx = fx.getContext('2d');
   ctx.imageSmoothingEnabled = false;
+
+  // blasons (écran titre et écran de fin)
+  $('#crest').getContext('2d').drawImage(getCrest(0), 0, 0);
+
+  // fond animé (braises) derrière tous les écrans
+  menuBg = $('#menu-bg'); menuCtx = menuBg.getContext('2d');
+  const resize = () => { menuBg.width = innerWidth; menuBg.height = innerHeight; };
+  resize();
+  window.addEventListener('resize', resize);
+  for (let i = 0; i < 36; i++) FX.embers.push(newEmber(true));
+  for (let i = 0; i < 18; i++) FX.motes.push({
+    x: Math.random() * 768, y: Math.random() * 768,
+    vx: 4 + Math.random() * 8, vy: -3 - Math.random() * 7,
+    ph: Math.random() * 6.28, r: 2 + Math.random() * 3,
+  });
 
   $('#btn-ai').onclick = () => { SFX.ui(); $('#diff-picker').classList.toggle('hidden'); };
   $$('#diff-picker button').forEach(b => b.onclick = () => {
@@ -121,7 +140,7 @@ function clearEquip(team) {
 function statLine(u) {
   const base = CLASSES[u.cls], s = stats(u);
   return ['hp', 'atk', 'def', 'spd', 'mov'].map(k => {
-    const d = s[k] - base[k];
+    const d = s[k] - base[k] - (k === 'hp' ? (u.komi || 0) : 0);
     const cls = d > 0 ? 'up' : d < 0 ? 'down' : '';
     return `<span class="stat ${cls}">${STAT_NAMES[k]} ${s[k]}${d ? ` (${d > 0 ? '+' : ''}${d})` : ''}</span>`;
   }).join(' ');
@@ -137,17 +156,20 @@ function renderPrep() {
   list.innerHTML = '';
   for (const u of UI.game.alive(t)) {
     const card = document.createElement('div');
-    card.className = 'unit-card';
+    card.className = 'unit-card fe-panel';
+    const frame = document.createElement('div');
+    frame.className = 'mini-frame';
     const mini = document.createElement('canvas');
-    mini.width = 16; mini.height = 16; mini.className = 'mini';
+    mini.width = 24; mini.height = 24; mini.className = 'mini';
     mini.getContext('2d').drawImage(getSprite(u.cls, t), 0, 0);
+    frame.appendChild(mini);
     const info = document.createElement('div');
     const w = findItem(u.weapon), a = findItem(u.armor);
     info.innerHTML =
       `<b>${CLASSES[u.cls].name}</b> <small>(${CLASSES[u.cls].piece} · ${WPN_NAMES[CLASSES[u.cls].wpn]})</small><br>` +
       `<span class="items">⚒ ${w ? w.name : '—'} &nbsp; 🛡 ${a ? a.name : '—'}</span><br>` +
       statLine(u);
-    card.append(mini, info);
+    card.append(frame, info);
     card.onclick = () => { SFX.select(); openItemModal(u); };
     list.appendChild(card);
   }
@@ -206,11 +228,12 @@ function startBattle() {
   UI.phase = 'idle';
   UI.sel = UI.target = UI.inspect = null;
   UI.startTime = Date.now();
-  FX.popups = []; FX.offsets = {}; FX.flash = {}; FX.fade = {};
+  FX.popups = []; FX.sparks = []; FX.rings = [];
+  FX.offsets = {}; FX.flash = {}; FX.fade = {};
   show('screen-game');
   updateTopBar();
   setPanel(`<b>Tour des ${TEAM_NAMES[0]}</b> — touchez une unité bleue pour commencer.`);
-  banner(`Tour des ${TEAM_NAMES[0]}`, '#4d7fdd');
+  banner(`Tour des ${TEAM_NAMES[0]}`, 'rgba(34, 52, 110, 0.92)');
 }
 
 // ---------- Barre du haut / panneau ----------------------------
@@ -224,26 +247,39 @@ function updateTopBar() {
     (g.turn > SUDDEN_DEATH - 10 ? `☠ dans ${Math.ceil((SUDDEN_DEATH - g.turn + 1) / 2)} tours` : '');
 }
 
-function setPanel(html, buttons = {}) {
+function setPanel(html, buttons = {}, unit = null) {
   $('#panel-text').innerHTML = html;
+  showPortrait(unit);
   $('#btn-wait').classList.toggle('hidden', !buttons.wait);
   $('#btn-cancel').classList.toggle('hidden', !buttons.cancel);
   $('#btn-attack').classList.toggle('hidden', !buttons.attack);
   $('#btn-back').classList.toggle('hidden', !buttons.back);
 }
 
+function showPortrait(u) {
+  const f = $('#portrait-frame');
+  if (!u) { f.classList.remove('show'); return; }
+  f.classList.add('show');
+  const c = $('#portrait').getContext('2d');
+  c.imageSmoothingEnabled = false;
+  c.clearRect(0, 0, 24, 24);
+  c.drawImage(getSprite(u.cls, u.team), 0, 0);
+}
+
 function unitInfo(u) {
   const s = stats(u), c = CLASSES[u.cls];
   const w = findItem(u.weapon), a = findItem(u.armor);
   return `<b class="${u.team === 0 ? 'team-blue' : 'team-red'}">${c.name}</b> ` +
-    `<small>${WPN_NAMES[c.wpn]}${w || a ? ' · ' + [w, a].filter(Boolean).map(i => i.name).join(', ') : ''}</small><br>` +
-    `PV ${u.hp}/${s.hp} · Atq ${s.atk} · Déf ${s.def} · Vit ${s.spd} · Mou ${s.mov}`;
+    `<small>${WPN_NAMES[c.wpn]}${w || a ? ' · ' + [w, a].filter(Boolean).map(i => i.name).join(', ') : ''}</small>` +
+    `<div class="stat-chips"><span>PV ${u.hp}/${s.hp}</span><span>Atq ${s.atk}</span>` +
+    `<span>Déf ${s.def}</span><span>Vit ${s.spd}</span><span>Mou ${s.mov}</span></div>`;
 }
 
 function banner(text, color) {
   const b = $('#banner');
   b.textContent = text;
-  b.style.background = color || '#222';
+  if (color) b.style.background =
+    `linear-gradient(90deg, transparent 0%, ${color} 12%, ${color} 88%, transparent 100%)`;
   b.classList.remove('show');
   void b.offsetWidth; // relance l'animation CSS
   b.classList.add('show');
@@ -313,7 +349,7 @@ function onTap(e) {
         }
     UI.inspectZone = [...zone].map(s => s.split(',').map(Number));
     SFX.select();
-    setPanel(unitInfo(u) + '<br><small>Zone de menace affichée.</small>');
+    setPanel(unitInfo(u) + '<small>Zone de menace affichée.</small>', {}, u);
   } else {
     UI.inspect = null; UI.inspectZone = [];
     setPanel(hintText());
@@ -348,7 +384,7 @@ function selectUnit(u) {
       UI.envelope.push([e.x, e.y]);
     }
   }
-  setPanel(unitInfo(u) + '<br><small>Touchez une case bleue pour bouger, un ennemi pour attaquer.</small>');
+  setPanel(unitInfo(u) + '<small>Touchez une case bleue pour bouger, un ennemi pour attaquer.</small>', {}, u);
 }
 
 function deselect() {
@@ -367,11 +403,11 @@ function moveAndThen(u, [tx, ty], then) {
 function afterMove() {
   const targets = UI.game.targetsFrom(UI.sel, UI.sel.x, UI.sel.y);
   if (targets.length)
-    setPanel(unitInfo(UI.sel) + '<br><small>Touchez un ennemi à portée, ou attendez.</small>',
-      { wait: true, cancel: true });
+    setPanel(unitInfo(UI.sel) + '<small>Touchez un ennemi à portée, ou attendez.</small>',
+      { wait: true, cancel: true }, UI.sel);
   else
-    setPanel(unitInfo(UI.sel) + '<br><small>Aucun ennemi à portée.</small>',
-      { wait: true, cancel: true });
+    setPanel(unitInfo(UI.sel) + '<small>Aucun ennemi à portée.</small>',
+      { wait: true, cancel: true }, UI.sel);
 }
 
 function openPreview(target) {
@@ -388,7 +424,7 @@ function openPreview(target) {
     line(d, f.dmgD, f.dblD && f.canCounter, f.canCounter ? `${f.dmgD} dgt (riposte)` : 'pas de riposte') +
     (f.vantage ? `<div class="fc-warn">⚠ Prévoyance : le défenseur, plus rapide, riposte en premier !</div>` : '') +
     `</div>`,
-    { attack: true, back: true });
+    { attack: true, back: true }, a);
   SFX.select();
 }
 
@@ -429,9 +465,10 @@ function finishAction() {
   if (g.winner !== null) return endGame(); // mort subite
   updateTopBar();
   if (g.suddenDeath && g.turn === SUDDEN_DEATH + 1)
-    banner('☠ MORT SUBITE — 1 PV perdu par tour', '#222');
+    banner('☠ MORT SUBITE', 'rgba(20, 12, 14, 0.94)');
   else
-    banner(`Tour des ${TEAM_NAMES[g.current]}`, g.current === 0 ? '#4d7fdd' : '#d8504a');
+    banner(`Tour des ${TEAM_NAMES[g.current]}`,
+      g.current === 0 ? 'rgba(34, 52, 110, 0.92)' : 'rgba(110, 32, 36, 0.92)');
   setPanel(hintText());
   if (UI.mode === 'ai' && g.current === 1) {
     UI.phase = 'anim';
@@ -447,7 +484,7 @@ async function aiPlay() {
   const mv = aiChooseMove(g, 1, UI.difficulty);
   if (!mv) { UI.phase = 'idle'; finishAction(); return; }
   const u = mv.unit;
-  setPanel(unitInfo(u));
+  setPanel(unitInfo(u), {}, u);
   const { cost } = g.reachable(u);
   if (mv.dest[0] !== u.x || mv.dest[1] !== u.y) {
     SFX.move();
@@ -473,11 +510,28 @@ async function animMove(u, path) {
     u.x = tx; u.y = ty;
     while (performance.now() - t0 < dur) {
       const k = 1 - (performance.now() - t0) / dur;
-      FX.offsets[u.id] = [(fx0 - tx) * TILE * k, (fy0 - ty) * TILE * k - Math.sin((1 - k) * Math.PI) * 3];
+      FX.offsets[u.id] = [(fx0 - tx) * TILE * k, (fy0 - ty) * TILE * k - Math.sin((1 - k) * Math.PI) * 4];
       await sleep(16);
     }
     delete FX.offsets[u.id];
   }
+}
+
+function spawnImpact(x, y, big) {
+  // coordonnées du calque fx (board px * SCALE)
+  const cx = (x * TILE + TILE / 2) * SCALE, cy = (y * TILE + TILE / 2) * SCALE;
+  const n = big ? 16 : 10;
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * 6.28, sp = (2 + Math.random() * 5) * (big ? 1.5 : 1);
+    FX.sparks.push({
+      x: cx, y: cy,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 2,
+      born: performance.now(), life: 320 + Math.random() * 180,
+      color: ['#fff6d8', '#ffe14d', '#ffab4d', '#ffffff'][i % 4],
+      size: 3 + Math.random() * 4,
+    });
+  }
+  FX.rings.push({ x: cx, y: cy, born: performance.now() });
 }
 
 async function animCombat(att, def, strikes) {
@@ -489,18 +543,19 @@ async function animCombat(att, def, strikes) {
     const t0 = performance.now(), dur = 160;
     while (performance.now() - t0 < dur) {
       const p = (performance.now() - t0) / dur;
-      const k = Math.sin(p * Math.PI) * 5;
+      const k = Math.sin(p * Math.PI) * 7;
       FX.offsets[actor.id] = [dx * k, dy * k];
       await sleep(16);
     }
     delete FX.offsets[actor.id];
     // impact
-    if (st.dmg > 0) { SFX.hit(); FX.flash[victim.id] = performance.now() + 140; FX.shake = performance.now() + 120; }
-    else SFX.miss();
+    SFX.hit();
+    FX.flash[victim.id] = performance.now() + 140;
+    FX.shake = performance.now() + 130;
+    spawnImpact(victim.x, victim.y, st.kill);
     FX.popups.push({
       x: victim.x, y: victim.y, born: performance.now(),
-      text: st.dmg > 0 ? `-${st.dmg}` : '0',
-      color: st.dmg > 0 ? '#ffe14d' : '#bbbbbb',
+      text: `-${st.dmg}`, color: '#ffe14d',
     });
     if (st.kill) {
       await sleep(180);
@@ -523,6 +578,7 @@ function endGame() {
   const mins = Math.round((Date.now() - UI.startTime) / 60000 * 10) / 10;
   SFX.win();
   setTimeout(() => {
+    $('#crest-end').getContext('2d').drawImage(getCrest(g.winner), 0, 0);
     $('#end-title').textContent = `Victoire des ${TEAM_NAMES[g.winner]} !`;
     $('#end-title').className = g.winner === 0 ? 'team-blue' : 'team-red';
     $('#end-sub').textContent =
@@ -532,55 +588,104 @@ function endGame() {
   }, 900);
 }
 
+// ---------- Braises du fond (tous écrans) -------------------------------
+function newEmber(anywhere) {
+  return {
+    x: Math.random() * innerWidth,
+    y: anywhere ? Math.random() * innerHeight : innerHeight + 10,
+    vy: 0.25 + Math.random() * 0.55,
+    sway: 0.4 + Math.random() * 0.9,
+    ph: Math.random() * 6.28,
+    r: 1 + Math.random() * 2.2,
+    gold: Math.random() < 0.7,
+  };
+}
+
+function drawEmbers(now) {
+  menuCtx.clearRect(0, 0, menuBg.width, menuBg.height);
+  for (let i = 0; i < FX.embers.length; i++) {
+    let e = FX.embers[i];
+    e.y -= e.vy;
+    e.x += Math.sin(now / 1700 + e.ph) * e.sway * 0.4;
+    if (e.y < -12) { FX.embers[i] = e = newEmber(false); }
+    const tw = 0.45 + 0.4 * Math.sin(now / 480 + e.ph * 3);
+    menuCtx.globalAlpha = Math.max(0, tw) * 0.7;
+    menuCtx.fillStyle = e.gold ? '#ffce63' : '#b48cff';
+    menuCtx.beginPath();
+    menuCtx.arc(e.x, e.y, e.r, 0, 6.28);
+    menuCtx.fill();
+  }
+  menuCtx.globalAlpha = 1;
+}
+
 // ---------- Boucle de rendu ---------------------------------------------
 function loop(now) {
   requestAnimationFrame(loop);
-  if (!$('#screen-game').classList.contains('active')) return;
+  drawEmbers(now);
+  if ($('#screen-game').classList.contains('active') && UI.game) drawGame(now);
+}
+
+function drawCorners(px, py, color, off) {
+  const L = 7;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  const x0 = px + 1 - off, y0 = py + 1 - off, x1 = px + TILE - 1 + off, y1 = py + TILE - 1 + off;
+  ctx.moveTo(x0, y0 + L); ctx.lineTo(x0, y0); ctx.lineTo(x0 + L, y0);
+  ctx.moveTo(x1 - L, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1, y0 + L);
+  ctx.moveTo(x1, y1 - L); ctx.lineTo(x1, y1); ctx.lineTo(x1 - L, y1);
+  ctx.moveTo(x0 + L, y1); ctx.lineTo(x0, y1); ctx.lineTo(x0, y1 - L);
+  ctx.stroke();
+}
+
+function drawGame(now) {
   const g = UI.game;
-  if (!g) return;
 
   // tremblement d'écran
   let sx = 0, sy = 0;
-  if (FX.shake > now) { sx = (Math.random() - 0.5) * 3; sy = (Math.random() - 0.5) * 3; }
+  if (FX.shake > now) { sx = (Math.random() - 0.5) * 4; sy = (Math.random() - 0.5) * 4; }
   ctx.setTransform(1, 0, 0, 1, sx, sy);
-  ctx.clearRect(-4, -4, cv.width + 8, cv.height + 8);
+  ctx.clearRect(-6, -6, cv.width + 12, cv.height + 12);
 
-  // terrain
+  // terrain + décorations déterministes
   for (let y = 0; y < BOARD; y++)
     for (let x = 0; x < BOARD; x++) {
       const tname = MAP[y][x] === 1 ? 'forest' : ((x + y) % 2 ? 'grassB' : 'grassA');
       ctx.drawImage(getTile(tname), x * TILE, y * TILE);
+      if (MAP[y][x] === 0) {
+        const h = (x * 53 + y * 97 + 11) % 23;
+        if (h === 3) ctx.drawImage(getTile('flowers'), x * TILE, y * TILE);
+        else if (h === 7 || h === 15) ctx.drawImage(getTile('tufts'), x * TILE, y * TILE);
+      }
     }
 
   // surlignages
+  const pulse = 0.5 + 0.5 * Math.sin(now / 240);
   if (UI.inspect && UI.inspectZone.length) {
-    ctx.fillStyle = 'rgba(255,150,40,0.35)';
+    ctx.fillStyle = `rgba(255, 150, 40, ${0.28 + pulse * 0.1})`;
     for (const [x, y] of UI.inspectZone) ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
   }
   if (UI.phase === 'selected' && UI.reach) {
-    ctx.fillStyle = 'rgba(70,130,255,0.42)';
-    for (const t of UI.reach.tiles) ctx.fillRect(t.x * TILE, t.y * TILE, TILE, TILE);
-    ctx.fillStyle = 'rgba(255,60,60,0.5)';
+    for (const t of UI.reach.tiles) {
+      ctx.fillStyle = `rgba(80, 140, 255, ${0.32 + pulse * 0.08})`;
+      ctx.fillRect(t.x * TILE, t.y * TILE, TILE, TILE);
+      ctx.strokeStyle = 'rgba(180, 215, 255, 0.55)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(t.x * TILE + 0.5, t.y * TILE + 0.5, TILE - 1, TILE - 1);
+    }
+    ctx.fillStyle = `rgba(255, 60, 60, ${0.38 + pulse * 0.12})`;
     for (const [x, y] of UI.envelope) ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
   }
   if (UI.phase === 'moved' && UI.sel) {
-    ctx.fillStyle = 'rgba(255,60,60,0.5)';
+    ctx.fillStyle = `rgba(255, 60, 60, ${0.38 + pulse * 0.12})`;
     for (const e of g.targetsFrom(UI.sel, UI.sel.x, UI.sel.y))
       ctx.fillRect(e.x * TILE, e.y * TILE, TILE, TILE);
   }
-  if (UI.phase === 'preview' && UI.target) {
-    const pul = 0.35 + 0.25 * Math.sin(now / 120);
-    ctx.fillStyle = `rgba(255,40,40,${pul})`;
-    ctx.fillRect(UI.target.x * TILE, UI.target.y * TILE, TILE, TILE);
-  }
+  if (UI.phase === 'preview' && UI.target)
+    drawCorners(UI.target.x * TILE, UI.target.y * TILE, '#ff5040', Math.round(pulse * 2));
 
-  // curseur de sélection
-  if (UI.sel) {
-    const pul = Math.sin(now / 160) > 0 ? 1 : 0;
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(UI.sel.x * TILE + 0.5 + pul * 0, UI.sel.y * TILE + 0.5, TILE - 1, TILE - 1);
-  }
+  // curseur de sélection (coins animés)
+  if (UI.sel) drawCorners(UI.sel.x * TILE, UI.sel.y * TILE, '#fdf6e0', Math.round(pulse * 2));
 
   // unités (triées par y pour la profondeur)
   const units = g.units.filter(u => !u.dead || FX.fade[u.id] !== undefined)
@@ -591,39 +696,102 @@ function loop(now) {
     const px = u.x * TILE + off[0], py = u.y * TILE + off[1] - bob;
     const fade = FX.fade[u.id];
     if (fade !== undefined) ctx.globalAlpha = fade;
+
+    // ombre portée
+    ctx.fillStyle = 'rgba(12, 10, 24, 0.34)';
+    ctx.beginPath();
+    ctx.ellipse(u.x * TILE + TILE / 2 + off[0] * 0.4, u.y * TILE + TILE - 2.5, 7.5, 2.6, 0, 0, 6.28);
+    ctx.fill();
+
     ctx.drawImage(getSprite(u.cls, u.team), px, py);
     if (FX.flash[u.id] > now) {
-      ctx.globalAlpha = 0.65;
+      ctx.globalAlpha = 0.7;
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(px + 2, py, TILE - 4, TILE);
+      ctx.fillRect(px + 3, py + 1, TILE - 6, TILE - 2);
       ctx.globalAlpha = fade !== undefined ? fade : 1;
     }
     ctx.globalAlpha = 1;
-    // barre de PV
-    if (!u.dead) {
-      const s = stats(u);
-      const ratio = u.hp / s.hp;
-      ctx.fillStyle = '#14121f';
-      ctx.fillRect(px + 1, py + TILE - 2, 14, 2);
-      ctx.fillStyle = ratio > 0.55 ? '#43d843' : ratio > 0.28 ? '#ffd23c' : '#ff4040';
-      ctx.fillRect(px + 2, py + TILE - 1.5, Math.max(1, Math.round(12 * ratio)), 1);
+
+    // barre de PV (seulement si l'unité est blessée)
+    const sMax = stats(u).hp;
+    if (!u.dead && u.hp < sMax) {
+      const ratio = u.hp / sMax;
+      const cols = ratio > 0.55 ? ['#46d846', '#8df08d'] : ratio > 0.28 ? ['#ffd23c', '#ffe98e'] : ['#ff5040', '#ff9a8e'];
+      ctx.fillStyle = 'rgba(10, 10, 22, 0.85)';
+      ctx.fillRect(px + 3, py + TILE - 4, 18, 4);
+      const w = Math.max(1, Math.round(16 * ratio));
+      ctx.fillStyle = cols[1];
+      ctx.fillRect(px + 4, py + TILE - 3, w, 1);
+      ctx.fillStyle = cols[0];
+      ctx.fillRect(px + 4, py + TILE - 2, w, 1);
     }
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-  // calque effets (texte net) : dégâts flottants
+  // ---- calque effets (texte net, lumière, particules) ----
   fxctx.clearRect(0, 0, fx.width, fx.height);
+
+  // balayage de lumière diagonal très doux
+  const lt = (now / 16000) % 1;
+  const span = fx.height * 0.5;
+  const ly = -span + (fx.height + 2 * span) * lt;
+  const grad = fxctx.createLinearGradient(0, ly - span, fx.width, ly + span);
+  grad.addColorStop(0, 'rgba(255, 238, 190, 0)');
+  grad.addColorStop(0.5, 'rgba(255, 238, 190, 0.085)');
+  grad.addColorStop(1, 'rgba(255, 238, 190, 0)');
+  fxctx.fillStyle = grad;
+  fxctx.fillRect(0, 0, fx.width, fx.height);
+
+  // poussières lumineuses
+  for (const m of FX.motes) {
+    m.x += m.vx * 0.016; m.y += m.vy * 0.016;
+    if (m.y < -8) { m.y = fx.height + 8; m.x = Math.random() * fx.width; }
+    if (m.x > fx.width + 8) m.x = -8;
+    fxctx.globalAlpha = 0.10 + 0.09 * Math.sin(now / 700 + m.ph);
+    fxctx.fillStyle = '#ffeebe';
+    fxctx.beginPath();
+    fxctx.arc(m.x, m.y, m.r, 0, 6.28);
+    fxctx.fill();
+  }
+  fxctx.globalAlpha = 1;
+
+  // ondes de choc
+  FX.rings = FX.rings.filter(r => now - r.born < 260);
+  for (const r of FX.rings) {
+    const age = (now - r.born) / 260;
+    fxctx.globalAlpha = (1 - age) * 0.65;
+    fxctx.strokeStyle = '#fff2c8';
+    fxctx.lineWidth = 3 * (1 - age) + 1;
+    fxctx.beginPath();
+    fxctx.arc(r.x, r.y, 6 + age * 46, 0, 6.28);
+    fxctx.stroke();
+  }
+
+  // étincelles
+  FX.sparks = FX.sparks.filter(s => now - s.born < s.life);
+  for (const s of FX.sparks) {
+    const age = (now - s.born) / s.life;
+    s.x += s.vx; s.y += s.vy; s.vy += 0.22;
+    fxctx.globalAlpha = 1 - age;
+    fxctx.fillStyle = s.color;
+    fxctx.fillRect(s.x, s.y, s.size * (1 - age * 0.5), s.size * (1 - age * 0.5));
+  }
+  fxctx.globalAlpha = 1;
+
+  // dégâts flottants
   fxctx.textAlign = 'center';
-  fxctx.font = `bold ${7 * SCALE}px monospace`;
+  fxctx.font = `bold ${8 * SCALE}px Georgia, serif`;
   FX.popups = FX.popups.filter(p => now - p.born < 850);
   for (const p of FX.popups) {
     const age = (now - p.born) / 850;
-    const yy = (p.y * TILE + 4 - age * 10) * SCALE;
+    const yy = (p.y * TILE + 6 - age * 14) * SCALE;
+    const xx = (p.x * TILE + TILE / 2) * SCALE;
     fxctx.globalAlpha = 1 - age * age;
-    fxctx.fillStyle = '#14121f';
-    fxctx.fillText(p.text, (p.x * TILE + 8) * SCALE + 2, yy + 2);
+    fxctx.lineWidth = 6;
+    fxctx.strokeStyle = 'rgba(16, 10, 26, 0.9)';
+    fxctx.strokeText(p.text, xx, yy);
     fxctx.fillStyle = p.color;
-    fxctx.fillText(p.text, (p.x * TILE + 8) * SCALE, yy);
+    fxctx.fillText(p.text, xx, yy);
   }
   fxctx.globalAlpha = 1;
 }
