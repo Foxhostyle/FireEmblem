@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1b1830">
+<title>Échec &amp; Lame — tactique pixel art</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%231b1830'/><rect x='2' y='2' width='6' height='6' fill='%234d7fdd'/><rect x='8' y='8' width='6' height='6' fill='%23d8504a'/></svg>">
+</head>
+<body>
+
+<!-- ================= MENU ================= -->
+<div id="screen-menu" class="screen active">
+  <div class="menu-box">
+    <h1 class="title">Échec <span class="amp">&amp;</span> Lame</h1>
+    <p class="subtitle">Tactique pixel art · échecs × emblème</p>
+    <button id="btn-ai" class="big">⚔ &nbsp;1 joueur — contre l'ordi</button>
+    <div id="diff-picker" class="hidden">
+      <button data-diff="normal">Recrue (IA normale)</button>
+      <button data-diff="hard">Stratège (IA difficile)</button>
+    </div>
+    <button id="btn-2p" class="big">🤝 &nbsp;2 joueurs — même téléphone</button>
+    <button id="btn-rules" class="big alt">📜 &nbsp;Règles</button>
+  </div>
+</div>
+
+<!-- ================= RÈGLES ================= -->
+<div id="screen-rules" class="screen">
+  <div class="rules-box">
+    <h2>Règles</h2>
+    <p><b>But :</b> tuez le <b>Seigneur</b> adverse. Comme aux échecs, on joue
+    <b>une seule unité par tour</b>, chacun son tour. Aucun hasard : tous les
+    dégâts sont prévisibles.</p>
+    <h3>Combat</h3>
+    <p>Dégâts = Atq − Déf (<b>minimum 1</b> : personne n'est invincible).
+    Le défenseur <b>riposte</b> s'il a l'attaquant à portée. Avec <b>+3 Vit</b>
+    ou plus d'écart, on frappe <b>deux fois</b>.</p>
+    <p><b>Prévoyance :</b> si le défenseur est strictement plus rapide que
+    l'attaquant, il riposte <b>avant</b> la première frappe. Attaquer plus
+    rapide que soi est risqué !</p>
+    <h3>Triangle des armes (±1 dégât)</h3>
+    <p>🗡 Épée &gt; 🪓 Hache &gt; 🔱 Lance &gt; 🗡 Épée. La ✨ Magie est neutre
+    et ignore la moitié de la Déf.</p>
+    <h3>Unités</h3>
+    <p>♟ <b>Soldat</b> (lance) · ♞ <b>Cavalier</b> (rapide, saute les unités) ·
+    ♜ <b>Chevalier</b> (mur lent) · ♝ <b>Mage</b> (portée 1-2, pas de riposte
+    possible contre lui à distance) · ♚ <b>Seigneur</b> (à protéger !).</p>
+    <h3>Terrain &amp; divers</h3>
+    <p>🌲 La forêt donne <b>+1 Déf</b> mais coûte 2 points de mouvement.
+    Touchez une unité ennemie pour voir sa <b>zone de menace</b>.
+    Les Bleus jouent en premier ; en compensation, chaque unité Rouge a
+    <b>+1 PV</b>. Après 20 tours chacun : <b>mort subite</b>, toutes les
+    unités perdent 1 PV par tour complet.</p>
+    <h3>Équipement</h3>
+    <p>Avant la bataille, équipez vos unités : chaque objet donne
+    <b>un bonus contre un malus</b>, et chaque objet est unique.</p>
+    <button id="btn-rules-back" class="big">⬅ Retour</button>
+  </div>
+</div>
+
+<!-- ================= PRÉPARATION ================= -->
+<div id="screen-prep" class="screen">
+  <h2 id="prep-title">Équipement</h2>
+  <div id="prep-list"></div>
+  <div class="prep-buttons">
+    <button id="btn-prep-auto">⚙ Auto</button>
+    <button id="btn-prep-clear">✖ Retirer tout</button>
+  </div>
+  <button id="btn-prep-go" class="big go">⚔ Lancer la bataille</button>
+
+  <div id="item-modal" class="modal hidden">
+    <div class="modal-box">
+      <h3 id="item-title">Équipement</h3>
+      <div id="item-lists"></div>
+      <button id="btn-item-close" class="big">✔ Valider</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= JEU ================= -->
+<div id="screen-game" class="screen">
+  <div id="topbar">
+    <span id="turn-label">Tour 1</span>
+    <span id="team-indicator" class="team-blue">Bleus</span>
+    <span id="sd-label"></span>
+    <span class="spacer"></span>
+    <button id="btn-mute" class="icon">🔊</button>
+    <button id="btn-quit" class="icon">✖</button>
+  </div>
+  <div id="board-wrap">
+    <canvas id="board" width="128" height="128"></canvas>
+    <canvas id="fx" width="512" height="512"></canvas>
+    <div id="banner"></div>
+  </div>
+  <div id="panel">
+    <div id="panel-text"></div>
+    <div id="panel-buttons">
+      <button id="btn-attack" class="action attack hidden">⚔ Attaquer</button>
+      <button id="btn-wait" class="action hidden">⏳ Attendre</button>
+      <button id="btn-back" class="action hidden">↩ Retour</button>
+      <button id="btn-cancel" class="action hidden">✖ Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FIN ================= -->
+<div id="screen-end" class="screen">
+  <div class="menu-box">
+    <h1 id="end-title">Victoire !</h1>
+    <p id="end-sub" class="subtitle"></p>
+    <button id="btn-again" class="big">🔁 Rejouer</button>
+    <button id="btn-menu" class="big alt">🏠 Menu</button>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
